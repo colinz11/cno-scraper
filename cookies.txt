@@ -1,5 +1,0 @@
-BetaFilters DevigMethod=0&ProfitStrategy=1&SortBy=2&IsMain2=0&MinimumEVPercentage=4&MinimumOddsProviderCount=3&MinimumSubMarketSideCount=2&MaximumSubMarketSideCount=&RequireACompleteSportsbook=True
-BetaKelly KellyBankroll=10000&KellyMultiplier=0.25
-BetaSettings ExcludedSportsbooks=yuOPMOgpVqJPtdYuKOgrLasE+jcV0CAeK6PwUK8rcstJGlABBDZTReAAURbvhxb3pENON1i1PiP5MjhkbuxCKHZ/p/c+zHM6OHLuwNaqaB3ro/nPtuOX0BPgKjvy9H6V&ExcludedAffiliateLinks=yo0zYLfC5tVO24tjWJQ6baibtbWD1lButiCnsbx3P46MQoIoFosZZOcZRv83Yr8yvnnDeyllRUNIMVfsCaD4Tg==
-BetaState State=ny
-BetaWarningLimits Read=1

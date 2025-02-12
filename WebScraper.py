@@ -1,0 +1,93 @@
+import time
+import logging
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
+import pandas as pd
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class WebScraper:
+    def __init__(self, url, cookies_file):
+        self.url = url
+        self.cookies_file = cookies_file
+        self.options = Options()
+        self.options.add_argument("--headless")  # Run headless (no browser window)
+        self.options.add_argument("--disable-gpu")
+        self.service = Service()
+        self.driver = webdriver.Chrome(service=self.service, options=self.options)
+
+    def connect_and_scrape(self):
+        logging.info(f"Connecting to {self.url}")
+        with webdriver.Chrome(service=self.service, options=self.options) as driver:
+            self.driver = driver
+            try:
+                self.driver.get(self.url)
+                logging.info("Page loaded.")
+                self.load_cookies()
+                self.driver.refresh()
+                logging.info("Page refreshed after loading cookies.")
+                time.sleep(3)
+                wait = WebDriverWait(self.driver, 10)
+                wait.until(EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1")))
+                soup = BeautifulSoup(self.driver.page_source, "html.parser")
+                logging.info("Scraping completed successfully.")
+                return soup
+            except Exception as e:
+                logging.error(f"An error occurred during scraping: {e}")
+                return None
+
+    def load_cookies(self):
+        cookies = []
+        with open(self.cookies_file, 'r') as f:
+            cookie_lines = f.readlines()
+            for line in cookie_lines:
+                cookie_parts = line.strip().split(" ")
+                if len(cookie_parts) >= 2:
+                    cookie = {
+                        'name': cookie_parts[0],
+                        'value': cookie_parts[1],
+                        'domain': 'crazyninjaodds.com',
+                        'path': '/',
+                        'secure': False
+                    }
+                    cookies.append(cookie)
+        for cookie in cookies:
+            self.driver.add_cookie(cookie)
+
+    def extract_data(self, soup):
+        # Locate the table
+        table = soup.find("table", {"id": "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1"})
+        # Extract headers
+        headers = [th.text.strip() for th in table.find_all("th")]
+
+        # Extract table rows
+        rows = []
+        for tr in table.find_all("tr")[1:]:  # Skip header row
+            cells = tr.find_all("td")
+            row = []
+            for cell in cells:
+                # Check for link elements (<a>) and extract both text and link (href attribute)
+                link = cell.find("a")
+                if link:
+                    row.append(f"{link.text.strip()} ({link['href']})")  # Extract text and link
+                # Check for bold text (<b>) and extract the bold text
+                elif cell.find("b"):
+                    row.append(cell.find("b").text.strip())  # Extract bold text
+                # Check for input elements (buttons, text inputs, etc.)
+                elif cell.find("input"):
+                    # For buttons, you could extract the button text or attribute
+                    input_type = cell.find("input").get("type", "Unknown")
+                    row.append(f"Button ({input_type})")  # Handle input buttons (could be extended to text inputs too)
+                # Handle datetime or other text that isn't a link or input
+                else:
+                    row.append(cell.text.strip())  # Extract normal text
+            rows.append(row)
+        # Convert to Pandas DataFrame
+        df = pd.DataFrame(rows, columns=headers)
+        
+        return df

@@ -19,9 +19,9 @@
 
 ## Enviroment Variables
 
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASSWORD=your_email_password
-FROM_EMAIL=your_email@gmail.com
-TO_EMAIL=recipient_email@gmail.com
+- SMTP_SERVER=smtp.gmail.com
+- SMTP_PORT=587
+- SMTP_USER=your_email@gmail.com
+- SMTP_PASSWORD=your_email_password
+- FROM_EMAIL=your_email@gmail.com
+- TO_EMAIL=recipient_email@gmail.com

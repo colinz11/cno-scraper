@@ -1,3 +1,4 @@
 .env
 __pycache__/AlertService.cpython-313.pyc
 __pycache__/WebScraper.cpython-313.pyc
+cookies.txt

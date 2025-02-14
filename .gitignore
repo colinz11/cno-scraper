@@ -2,3 +2,4 @@
 cno_scraper.db
 cookies.txt
 output.csv
+__pycache__

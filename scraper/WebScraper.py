@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import pandas as pd
 from database.Repository import Repository
+from database.Database import Market
 from urllib.parse import urlparse, parse_qs
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -127,28 +128,32 @@ class WebScraper:
         df = pd.DataFrame([data], columns=headers)
         return df
     
-    def navigate_and_scrape_links(self, row):
+    def scrape_market(self, market: Market):
         logging.info("Navigating and scraping links.")
         # Iterate through the DataFrame
-        
-        if row['Event'] is not None:
-            
+        if market.event is not None:   
             # Extract the URL from the cell
-            url = "https://crazyninjaodds.com" + row['Event'].split('(')[-1].strip(')')
+            url = "https://crazyninjaodds.com" + market.event.split('(')[-1].strip(')')
             logging.info("Navigating to URL: %s", url)
             # Navigate to the new page
             self.driver = webdriver.Chrome(service=self.service, options=self.options)
             self.driver.get(url)
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1"))
-            )
+            try:
+                WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1"))
+                )
+            except Exception as e:
+                logging.error(f"Timeout or error occurred: {e}")
+                return 'Invalid Market'
             # Extract the row ID from the URL
             row_id = self.extract_row_id(url)
             logging.info("Extracting data for row ID: %s", row_id)
             # Scrape data from the new page
             new_soup = BeautifulSoup(self.driver.page_source, "html.parser")
             game_data = self.extract_game_data(new_soup, row_id)
-            self.repository.save_game_data(row, game_data)
-            return game_data
+            book_odds = self.repository.save_game_data(market, game_data)
+            return book_odds
+        else:
+            logging.warning("No event link found for market: %s", market)
                 
                     

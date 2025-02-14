@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import pandas as pd
 from database.Repository import Repository
-from database.Database import Market
+from database.Database import Market, BookOdd
 from urllib.parse import urlparse, parse_qs
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -64,7 +64,7 @@ class WebScraper:
         for cookie in cookies:
             self.driver.add_cookie(cookie)
 
-    def extract_data(self, soup):
+    def extract_positve_markets(self, soup) -> list[Market]:
         # Locate the table
         table = soup.find("table", {"id": "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1"})
         # Extract headers
@@ -81,8 +81,8 @@ class WebScraper:
                 rows.append(row)
         # Convert to Pandas DataFrame
         df = pd.DataFrame(rows, columns=headers)
-        
-        return df
+        markets = self.repository.save_market_data(df)
+        return markets
     
     def extract_cell_data(self, cell):
          # Check for link elements (<a>) and extract both text and link (href attribute)
@@ -128,7 +128,7 @@ class WebScraper:
         df = pd.DataFrame([data], columns=headers)
         return df
     
-    def scrape_market(self, market: Market):
+    def scrape_market(self, market: Market) -> list[BookOdd]:
         logging.info("Navigating and scraping links.")
         # Iterate through the DataFrame
         if market.event is not None:   

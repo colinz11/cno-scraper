@@ -6,8 +6,8 @@ import os
 from database.Database import session, Market, BookOdd, Bet
 from database.Repository import Repository
 from scraper.WebScraper import WebScraper
-from AlertService import AlertService
-from engine.engine import MarketTracker
+from engine.AlertService import AlertService
+from engine.MarketTracker import MarketTracker
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,45 +40,23 @@ def main():
             logging.info("Scraping the website for data.")
             soup = scraper.connect_and_scrape()
             if soup:
-                df = scraper.extract_data(soup)
-                if df.empty:
+                markets = scraper.extract_positve_markets(soup)
+                if len(markets) == 0:
                     logging.info("No data found on the page.")
                     time.sleep(30)
                     continue                 
-          
-                current_top3 = df.head(3)
                 
                 # Save data to the database
-                for index, row in df.iterrows():
-                    market = Market(
-                        date=row['Date'],
-                        sport=row['Sport'],
-                        league=row['League'],
-                        event=row['Event'],
-                        market=row['Market'],
-                        bet_name=row['Bet Name']
-                    )
-                    repo.add_market(market)
-                    scraper.scrape_market(market)
+                for market in markets:
                     market_tracker.track_market(market)
+                    market_tracker.check_market_updates()
                     
-                    bet = Bet(
-                        market_id=market.id,
-                        bet_odds=int(row['Odds']),
-                        fair_odds=int(row['Fair Odds']),
-                        timestamp=datetime.now()
-                    )
-                    repo.add_bet(bet)
+                 
+                    alert_service.send_market_alert(market, None)
                 
-                if previous_data is None or not current_top3.equals(previous_data):
-                    logging.info("Data has changed. Sending an alert.")
-                    #alert_service.analyze_data(current_top3)
-                    previous_data = current_top3
-                else:
-                    logging.info("Data has not changed.")
             else:
                 logging.warning("Failed to scrape the website.")
-        market_tracker.check_market_updates()
+        
         logging.info("Sleeping for 30 seconds.")
         time.sleep(30)
 

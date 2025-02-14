@@ -60,7 +60,7 @@ class Repository:
         self.session.delete(bet)
         self.session.commit()
 
-    def save_game_data(self, market: Market, game_data):   
+    def save_game_data(self, market: Market, game_data) -> list[BookOdd]:   
         self.add_market(market)
         # Create BookOdd instances
         book_odds = []
@@ -80,3 +80,18 @@ class Repository:
                 self.add_book_odd(book_odd)
                 book_odds.append(book_odd)
         return book_odds
+    
+    def save_market_data(self, game_data) -> list[Market]:
+        markets = []
+        for index, row in game_data.iterrows():
+            market = Market(
+                date=row['Date'],
+                sport=row['Sport'],
+                league=row['League'],
+                event=row['Event'],
+                market=row['Market'],
+                bet_name=row['Bet Name']
+            )
+            self.add_market(market)
+            markets.append(market)
+        return markets

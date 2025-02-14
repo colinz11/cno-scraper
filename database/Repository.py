@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database import Market, BookOdd, Bet
+from database.Database import Market, BookOdd, Bet
 
 class Repository:
     def __init__(self, session: Session):

@@ -1,14 +1,15 @@
 import time
 import logging
 from datetime import datetime
-from WebScraper import WebScraper
-from AlertService import AlertService
 from dotenv import load_dotenv
 import os
+from database.Database import session, Market, BookOdd, Bet
+from database.Repository import Repository
+from scraper.WebScraper import WebScraper
+from AlertService import AlertService
 
 # Load environment variables from .env file
 load_dotenv()
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,10 +23,12 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 FROM_EMAIL = os.getenv("FROM_EMAIL")
 TO_EMAIL = os.getenv("TO_EMAIL")
 
+
 def main():
     logging.info("Starting the web scraper and alert service.")
     scraper = WebScraper(URL, COOKIES_FILE_PATH)
     alert_service = AlertService(SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, FROM_EMAIL, TO_EMAIL)
+    repo = Repository(session)
     previous_data = None
 
     while True:
@@ -37,10 +40,43 @@ def main():
             soup = scraper.connect_and_scrape()
             if soup:
                 df = scraper.extract_data(soup)
+                scraper.navigate_and_scrape_links(df)
+                print(df)
                 current_top3 = df.head(3)
+                
+                # Save data to the database
+                for index, row in df.iterrows():
+                    if 'Book' not in row.keys():
+                        continue
+                    market = Market(
+                        date=row['Date'],
+                        sport=row['Sport'],
+                        league=row['League'],
+                        event=row['Event'],
+                        market=row['Market'],
+                        bet_name=row['Bet Name']
+                    )
+                    repo.add_market(market)
+                    
+                    book_odd = BookOdd(
+                        market_id=market.id,
+                        book_name=row['Book'],
+                        odds=int(row['Odds']),
+                        timestamp=datetime.now()
+                    )
+                    repo.add_book_odd(book_odd)
+                    
+                    bet = Bet(
+                        market_id=market.id,
+                        fair_odds=int(row['Fair Odds']),
+                        timestamp=datetime.now()
+                    )
+                    bet.book_odds.append(book_odd)
+                    repo.add_bet(bet)
+                
                 if previous_data is None or not current_top3.equals(previous_data):
                     logging.info("Data has changed. Sending an alert.")
-                    alert_service.analyze_data(current_top3)
+                    #alert_service.analyze_data(current_top3)
                     previous_data = current_top3
                 else:
                     logging.info("Data has not changed.")

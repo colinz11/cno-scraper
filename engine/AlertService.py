@@ -2,6 +2,7 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from database.Repository import Market, Bet
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,26 +33,23 @@ class AlertService:
         except Exception as e:
             logging.error(f"Failed to send alert: {e}")
 
-    def analyze_data(self, data):
-        if not data.empty:
-            logging.info("Analyzing data.")
-            alert_message = ""
-            for i in range(min(3, len(data))):
-                row = data.iloc[i]
-                if row['Event'] is None:
-                    continue
-                event = row['Event'].split("(")[0]
-                alert_message += (
-                    f"Worst-Case%: {row['Worst-Case%']}, "
-                    f"Event: {event}, "
-                    f"Market: {row['Market']}, "
-                    f"Bet Name: {row['Bet Name']}, "
-                    f"Odds: {row['Odds']}, "
-                    f"Sportsbook: {row['Sportsbook']}, "
-                    f"Fair Odds: {row['Fair Odds']}, "
-                    f"Books: {row['Books']}\n"
-                )
-            logging.info(f"Alert message: {alert_message}")
-            self.send_alert("Positive EV Bets:", f"{alert_message}")
-        else:
-            logging.info("No positive ev bets found.")
+    def send_market_alert(self, market : Market, bet : Bet):
+        if bet is None:
+            logging.info("No bet found for the market.")
+            return
+      
+        logging.info("Sending bet alert.")
+        alert_message = ""
+        event = market.event.split("(")[0]
+        alert_message += (
+            f"Sport {market.sport} \n"
+            f"League: {market.league} \n"
+            f"Event: {event} \n"
+            f"Market: {market.market} \n"
+            f"Bet Name: {market.bet_name} \n"
+            f"Odds: {bet.bet_odds} \n"
+            f"Fair Odds: {bet.fair_odds} \n"
+        )
+        logging.info(f"Alert message: {alert_message}")
+        self.send_alert("Positive EV Bet:", f"{alert_message}")
+    

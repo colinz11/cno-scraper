@@ -60,21 +60,11 @@ class Repository:
         self.session.delete(bet)
         self.session.commit()
 
-    def save_game_data(self, row, game_data):
-        # Create Market instance
-        market = Market(
-            date=row['Date'],
-            sport=row['Sport'],
-            league=row['League'],
-            event=row['Event'],
-            market=row['Market'],
-            bet_name=row['Bet Name']
-        )
+    def save_game_data(self, market: Market, game_data) -> list[BookOdd]:   
         self.add_market(market)
-        game_data.to_csv("output.csv", index=False)
         # Create BookOdd instances
+        book_odds = []
         for header, data in zip(list(game_data.columns), game_data.values[0]):
-            
             if header not in ['Bet Name', 'Best', 'Fair Odds']:
                 if data['text']:
                     odds = int(data['text'])
@@ -88,3 +78,20 @@ class Repository:
                     is_best=data['is_best']
                 )
                 self.add_book_odd(book_odd)
+                book_odds.append(book_odd)
+        return book_odds
+    
+    def save_market_data(self, game_data) -> list[Market]:
+        markets = []
+        for index, row in game_data.iterrows():
+            market = Market(
+                date=row['Date'],
+                sport=row['Sport'],
+                league=row['League'],
+                event=row['Event'],
+                market=row['Market'],
+                bet_name=row['Bet Name']
+            )
+            self.add_market(market)
+            markets.append(market)
+        return markets

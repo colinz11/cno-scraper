@@ -25,10 +25,11 @@ TO_EMAIL = os.getenv("TO_EMAIL")
 
 
 def main():
-    logging.info("Starting the web scraper and alert service.")
-    scraper = WebScraper(URL, COOKIES_FILE_PATH)
-    alert_service = AlertService(SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, FROM_EMAIL, TO_EMAIL)
+    logging.info("Starting the web scraper and alert service.") 
     repo = Repository(session)
+    scraper = WebScraper(URL, COOKIES_FILE_PATH, repo)
+    alert_service = AlertService(SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, FROM_EMAIL, TO_EMAIL)
+   
     previous_data = None
 
     while True:
@@ -40,8 +41,14 @@ def main():
             soup = scraper.connect_and_scrape()
             if soup:
                 df = scraper.extract_data(soup)
-                scraper.navigate_and_scrape_links(df)
-                print(df)
+                if df.empty:
+                    logging.info("No data found on the page.")
+                    time.sleep(30)
+                    continue
+                df.to_csv("output.csv", index=False)
+                for index, row in df.iterrows():
+                    scraper.navigate_and_scrape_links(row)
+          
                 current_top3 = df.head(3)
                 
                 # Save data to the database

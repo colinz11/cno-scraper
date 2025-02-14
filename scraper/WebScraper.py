@@ -8,12 +8,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import pandas as pd
+from database.Repository import Repository
 from urllib.parse import urlparse, parse_qs
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 class WebScraper:
-    def __init__(self, url, cookies_file):
+    def __init__(self, url, cookies_file, repository : Repository):
         self.url = url
         self.cookies_file = cookies_file
         self.options = Options()
@@ -21,6 +23,7 @@ class WebScraper:
         self.options.add_argument("--disable-gpu")
         self.service = Service()
         self.driver = webdriver.Chrome(service=self.service, options=self.options)
+        self.repository = repository
 
     def connect_and_scrape(self):
         logging.info(f"Connecting to {self.url}")
@@ -73,7 +76,8 @@ class WebScraper:
             row = []
             for cell in cells:
                row.append(self.extract_cell_data(cell))
-            rows.append(row)
+            if (len(row) == len(headers)):
+                rows.append(row)
         # Convert to Pandas DataFrame
         df = pd.DataFrame(rows, columns=headers)
         
@@ -118,7 +122,8 @@ class WebScraper:
         cells = row.find_all("td")
         for cell in cells:
             text = cell.text.strip()
-            data.append(text)
+            is_best = 'background-color:#AFE1AF;' in cell.get('style', '')
+            data.append({'text': text, 'is_best': is_best})
         df = pd.DataFrame([data], columns=headers)
         return df
     
@@ -143,6 +148,7 @@ class WebScraper:
             # Scrape data from the new page
             new_soup = BeautifulSoup(self.driver.page_source, "html.parser")
             game_data = self.extract_game_data(new_soup, row_id)
+            self.repository.save_game_data(row, game_data)
             return game_data
                 
                     

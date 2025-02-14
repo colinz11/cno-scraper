@@ -25,7 +25,7 @@ class BookOdd(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     market_id = Column(Integer, ForeignKey('markets.id'), nullable=False)
     book_name = Column(String, nullable=False)
-    odds = Column(Integer, nullable=False)
+    odds = Column(Integer, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     is_best = Column(Boolean, nullable=False)
 

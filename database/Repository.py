@@ -7,16 +7,40 @@ class Repository:
         self.session = session
 
     def add_market(self, market: Market):
-        self.session.add(market)
-        self.session.commit()
+        existing_market = self.session.query(Market).filter(
+            Market.date == market.date,
+            Market.sport == market.sport,
+            Market.league == market.league,
+            Market.event == market.event,
+            Market.market == market.market,
+            Market.bet_name == market.bet_name
+        ).first()
+        if not existing_market:
+            self.session.add(market)
+            self.session.commit()
 
     def add_book_odd(self, book_odd: BookOdd):
-        self.session.add(book_odd)
-        self.session.commit()
+        existing_book_odd = self.session.query(BookOdd).filter(
+            BookOdd.market_id == book_odd.market_id,
+            BookOdd.book_name == book_odd.book_name,
+            BookOdd.odds == book_odd.odds,
+            BookOdd.timestamp == book_odd.timestamp,
+            BookOdd.is_best == book_odd.is_best
+        ).first()
+        if not existing_book_odd:
+            self.session.add(book_odd)
+            self.session.commit()
 
     def add_bet(self, bet: Bet):
-        self.session.add(bet)
-        self.session.commit()
+        existing_bet = self.session.query(Bet).filter(
+            Bet.market_id == bet.market_id,
+            Bet.bet_odds == bet.bet_odds,
+            Bet.fair_odds == bet.fair_odds,
+            Bet.timestamp == bet.timestamp
+        ).first()
+        if not existing_bet:
+            self.session.add(bet)
+            self.session.commit()
 
     def get_market_by_id(self, market_id: int) -> Market:
         return self.session.query(Market).filter(Market.id == market_id).first()

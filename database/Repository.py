@@ -44,6 +44,13 @@ class Repository:
 
     def get_market_by_id(self, market_id: int) -> Market:
         return self.session.query(Market).filter(Market.id == market_id).first()
+    
+    def get_market_by_details(self, event: str, market: str, bet: str) -> Market:
+        return self.session.query(Market).filter(
+            Market.event == event,
+            Market.market == market,
+            Market.bet_name == bet
+        ).first()
 
     def get_all_markets(self) -> list:
         return self.session.query(Market).all()

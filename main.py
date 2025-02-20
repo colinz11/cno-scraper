@@ -8,6 +8,7 @@ from database.Repository import Repository
 from scraper.WebScraper import WebScraper
 from engine.AlertService import AlertService
 from engine.MarketTracker import MarketTracker
+from visualizer.Grapher import Grapher
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,6 +31,7 @@ def main():
     scraper = WebScraper(URL, COOKIES_FILE_PATH, repo)
     alert_service = AlertService(SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, FROM_EMAIL, TO_EMAIL)
     market_tracker = MarketTracker(scraper, repo)
+    grapher = Grapher(repo)
 
     while True:
         logging.info("Scraping the website for data.")
@@ -46,7 +48,8 @@ def main():
             for market in markets:
                 market_tracker.track_market(market)
                 market_tracker.check_market_updates()
-
+                 # Plot the market using Grapher
+                #grapher.plot_book_odds(market)
                 
             alert_service.send_market_alert(markets[0])
             
@@ -55,6 +58,7 @@ def main():
     
         logging.info("Sleeping for 30 seconds.")
         time.sleep(30)
+        #grapher.close_all_windows()
 
 if __name__ == "__main__":
     main()

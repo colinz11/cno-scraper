@@ -36,7 +36,7 @@ class WebScraper:
                 self.load_cookies()
                 self.driver.refresh()
                 logging.info("Page refreshed after loading cookies.")
-                time.sleep(3)
+                time.sleep(2)
                 wait = WebDriverWait(self.driver, 10)
                 wait.until(EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1")))
                 soup = BeautifulSoup(self.driver.page_source, "html.parser")

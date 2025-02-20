@@ -8,6 +8,7 @@ from database.Repository import Repository
 from scraper.WebScraper import WebScraper
 from engine.AlertService import AlertService
 from engine.MarketTracker import MarketTracker
+from visualizer.Grapher import Grapher
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,35 +31,34 @@ def main():
     scraper = WebScraper(URL, COOKIES_FILE_PATH, repo)
     alert_service = AlertService(SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, FROM_EMAIL, TO_EMAIL)
     market_tracker = MarketTracker(scraper, repo)
-    previous_data = None
+    grapher = Grapher(repo)
 
     while True:
-        current_time = datetime.now().time()
-        if current_time.hour >= 0 and current_time.hour < 8:
-            logging.info("Skipping alerts between midnight and 8 AM")
+        logging.info("Scraping the website for data.")
+        soup = scraper.connect_and_scrape()
+        if soup:
+            markets = scraper.extract_positve_markets(soup)
+            if len(markets) == 0:
+                logging.info("No data found on the page.")
+                logging.info("Sleeping for 30 seconds.")
+                time.sleep(30)
+                continue                 
+            
+            # Save data to the database
+            for market in markets:
+                market_tracker.track_market(market)
+                market_tracker.check_market_updates()
+                 # Plot the market using Grapher
+                #grapher.plot_book_odds(market)
+                
+            alert_service.send_market_alert(markets[0])
+            
         else:
-            logging.info("Scraping the website for data.")
-            soup = scraper.connect_and_scrape()
-            if soup:
-                markets = scraper.extract_positve_markets(soup)
-                if len(markets) == 0:
-                    logging.info("No data found on the page.")
-                    time.sleep(30)
-                    continue                 
-                
-                # Save data to the database
-                for market in markets:
-                    market_tracker.track_market(market)
-                    market_tracker.check_market_updates()
-                    
-                 
-                    alert_service.send_market_alert(market, None)
-                
-            else:
-                logging.warning("Failed to scrape the website.")
-        
+            logging.warning("Failed to scrape the website.")
+    
         logging.info("Sleeping for 30 seconds.")
         time.sleep(30)
+        #grapher.close_all_windows()
 
 if __name__ == "__main__":
     main()

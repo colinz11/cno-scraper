@@ -31,5 +31,5 @@ class MarketTracker:
                 self.remove_market(market)
             else:
                 for book_odd in response:
-                    self.repo.add_book_odd(book_odd)
+                    print(book_odd)
                     

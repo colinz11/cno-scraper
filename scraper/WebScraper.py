@@ -36,7 +36,7 @@ class WebScraper:
                 self.load_cookies()
                 self.driver.refresh()
                 logging.info("Page refreshed after loading cookies.")
-                time.sleep(3)
+                time.sleep(2)
                 wait = WebDriverWait(self.driver, 10)
                 wait.until(EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1")))
                 soup = BeautifulSoup(self.driver.page_source, "html.parser")
@@ -151,6 +151,8 @@ class WebScraper:
             # Scrape data from the new page
             new_soup = BeautifulSoup(self.driver.page_source, "html.parser")
             game_data = self.extract_game_data(new_soup, row_id)
+            self.repository.add_market(market)
+            market = self.repository.get_market_by_details(market.event, market.market, market.bet_name)
             book_odds = self.repository.save_game_data(market, game_data)
             return book_odds
         else:

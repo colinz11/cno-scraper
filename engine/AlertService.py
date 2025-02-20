@@ -33,10 +33,8 @@ class AlertService:
         except Exception as e:
             logging.error(f"Failed to send alert: {e}")
 
-    def send_market_alert(self, market : Market, bet : Bet):
-        if bet is None:
-            logging.info("No bet found for the market.")
-            return
+    def send_market_alert(self, market : Market):
+
       
         logging.info("Sending bet alert.")
         alert_message = ""
@@ -47,8 +45,6 @@ class AlertService:
             f"Event: {event} \n"
             f"Market: {market.market} \n"
             f"Bet Name: {market.bet_name} \n"
-            f"Odds: {bet.bet_odds} \n"
-            f"Fair Odds: {bet.fair_odds} \n"
         )
         logging.info(f"Alert message: {alert_message}")
         self.send_alert("Positive EV Bet:", f"{alert_message}")

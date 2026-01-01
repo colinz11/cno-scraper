@@ -2,7 +2,7 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from database.Repository import Market, Bet
+from database.Database import Market
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,12 +40,19 @@ class AlertService:
         alert_message = ""
         event = market.event.split("(")[0]
         alert_message += (
-            f"Sport {market.sport} \n"
+            f"Sport: {market.sport} \n"
             f"League: {market.league} \n"
             f"Event: {event} \n"
             f"Market: {market.market} \n"
             f"Bet Name: {market.bet_name} \n"
         )
+        
+        # Add fair odds and best book odds if available
+        if hasattr(market, 'fair_odds') and market.fair_odds:
+            alert_message += f"Fair Odds: {market.fair_odds} \n"
+        if hasattr(market, 'best_odds') and market.best_odds:
+            alert_message += f"Best Book Odds: {market.best_odds} \n"
+            
         logging.info(f"Alert message: {alert_message}")
         self.send_alert("Positive EV Bet:", f"{alert_message}")
     

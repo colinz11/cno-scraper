@@ -8,45 +8,102 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import pandas as pd
-from database.Repository import Repository
-from database.Database import Market, BookOdd
+from database.Database import Market
 from urllib.parse import urlparse, parse_qs
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class WebScraper:
-    def __init__(self, url, cookies_file, repository : Repository):
+    def __init__(self, url, cookies_file):
         self.url = url
         self.cookies_file = cookies_file
         self.options = Options()
         self.options.add_argument("--headless")  # Run headless (no browser window)
         self.options.add_argument("--disable-gpu")
-        self.service = Service()
-        self.driver = webdriver.Chrome(service=self.service, options=self.options)
-        self.repository = repository
+        self.driver = None
+        self.service = None
+        self.cookies_loaded = False
 
-    def connect_and_scrape(self):
-        logging.info(f"Connecting to {self.url}")
-        with webdriver.Chrome(service=self.service, options=self.options) as driver:
-            self.driver = driver
-            try:
+    def _initialize_driver(self):
+        """Initialize the browser driver if it doesn't exist or is invalid."""
+        try:
+            if self.driver is None:
+                logging.info("Initializing browser driver.")
+                self.service = Service()
+                self.driver = webdriver.Chrome(service=self.service, options=self.options)
                 self.driver.get(self.url)
-                logging.info("Page loaded.")
-                self.load_cookies()
+                logging.info("Page loaded initially.")
+                self.load_cookies(self.driver)
                 self.driver.refresh()
                 logging.info("Page refreshed after loading cookies.")
-                time.sleep(2)
-                wait = WebDriverWait(self.driver, 10)
-                wait.until(EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1")))
-                soup = BeautifulSoup(self.driver.page_source, "html.parser")
-                logging.info("Scraping completed successfully.")
-                return soup
-            except Exception as e:
-                logging.error(f"An error occurred during scraping: {e}")
-                return None
+                self.cookies_loaded = True
+            else:
+                # Check if driver is still valid
+                try:
+                    self.driver.current_url
+                except:
+                    # Driver is invalid, recreate it
+                    logging.warning("Browser driver became invalid, recreating...")
+                    if self.driver:
+                        try:
+                            self.driver.quit()
+                        except:
+                            pass
+                    self.service = Service()
+                    self.driver = webdriver.Chrome(service=self.service, options=self.options)
+                    self.driver.get(self.url)
+                    logging.info("Page loaded after recreation.")
+                    self.load_cookies(self.driver)
+                    self.driver.refresh()
+                    logging.info("Page refreshed after loading cookies.")
+                    self.cookies_loaded = True
+        except Exception as e:
+            logging.error(f"Error initializing driver: {e}")
+            if self.driver:
+                try:
+                    self.driver.quit()
+                except:
+                    pass
+            self.driver = None
+            raise
 
-    def load_cookies(self):
+    def connect_and_scrape(self):
+        logging.info(f"Refreshing page at {self.url}")
+        try:
+            # Initialize driver if needed
+            self._initialize_driver()
+            
+            # Just refresh the page instead of creating a new browser
+            self.driver.refresh()
+            logging.info("Page refreshed.")
+            time.sleep(2)
+            wait = WebDriverWait(self.driver, 10)
+            wait.until(EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1")))
+            soup = BeautifulSoup(self.driver.page_source, "html.parser")
+            logging.info("Scraping completed successfully.")
+            return soup
+        except Exception as e:
+            logging.error(f"An error occurred during scraping: {e}")
+            # Try to recover by resetting the driver
+            self.driver = None
+            self.cookies_loaded = False
+            return None
+
+    def cleanup(self):
+        """Clean up the browser driver."""
+        if self.driver:
+            try:
+                self.driver.quit()
+                logging.info("Browser driver closed.")
+            except Exception as e:
+                logging.error(f"Error closing driver: {e}")
+            finally:
+                self.driver = None
+                self.service = None
+                self.cookies_loaded = False
+
+    def load_cookies(self, driver):
         cookies = []
         with open(self.cookies_file, 'r') as f:
             cookie_lines = f.readlines()
@@ -62,7 +119,7 @@ class WebScraper:
                     }
                     cookies.append(cookie)
         for cookie in cookies:
-            self.driver.add_cookie(cookie)
+            driver.add_cookie(cookie)
 
     def extract_positve_markets(self, soup) -> list[Market]:
         # Locate the table
@@ -81,7 +138,29 @@ class WebScraper:
                 rows.append(row)
         # Convert to Pandas DataFrame
         df = pd.DataFrame(rows, columns=headers)
-        markets = self.repository.save_market_data(df)
+        # Create Market objects without saving to database
+        markets = []
+        for index, row in df.iterrows():
+            market = Market(
+                date=row['Date'],
+                sport=row['Sport'],
+                league=row['League'],
+                event=row['Event'],
+                market=row['Market'],
+                bet_name=row['Bet Name']
+            )
+            # Add fair odds and best book odds as attributes (not part of DB schema)
+            if 'Fair Odds' in row:
+                market.fair_odds = row['Fair Odds']
+            else:
+                market.fair_odds = None
+                
+            if 'Best' in row:
+                market.best_odds = row['Best']
+            else:
+                market.best_odds = None
+                
+            markets.append(market)
         return markets
     
     def extract_cell_data(self, cell):
@@ -128,34 +207,5 @@ class WebScraper:
         df = pd.DataFrame([data], columns=headers)
         return df
     
-    def scrape_market(self, market: Market) -> list[BookOdd]:
-        logging.info("Navigating and scraping links.")
-        # Iterate through the DataFrame
-        if market.event is not None:   
-            # Extract the URL from the cell
-            url = "https://crazyninjaodds.com" + market.event.split('(')[-1].strip(')')
-            logging.info("Navigating to URL: %s", url)
-            # Navigate to the new page
-            self.driver = webdriver.Chrome(service=self.service, options=self.options)
-            self.driver.get(url)
-            try:
-                WebDriverWait(self.driver, 3).until(
-                    EC.presence_of_element_located((By.ID, "ContentPlaceHolderMain_ContentPlaceHolderRight_GridView1"))
-                )
-            except Exception as e:
-                logging.error(f"Timeout or error occurred: {e}")
-                return 'Invalid Market'
-            # Extract the row ID from the URL
-            row_id = self.extract_row_id(url)
-            logging.info("Extracting data for row ID: %s", row_id)
-            # Scrape data from the new page
-            new_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-            game_data = self.extract_game_data(new_soup, row_id)
-            self.repository.add_market(market)
-            market = self.repository.get_market_by_details(market.event, market.market, market.bet_name)
-            book_odds = self.repository.save_game_data(market, game_data)
-            return book_odds
-        else:
-            logging.warning("No event link found for market: %s", market)
                 
                     
